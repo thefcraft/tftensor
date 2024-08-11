@@ -51,6 +51,11 @@ class tensor:
 
         :param data: tensorType instance to initialize the tensor.
         """
+        assert (
+            isinstance(data, Tensor_f32) or isinstance(data, Tensor_f64) or 
+            isinstance(data, Tensor_u8) or isinstance(data, Tensor_u16) or isinstance(data, Tensor_u32) or isinstance(data, Tensor_u64) or
+            isinstance(data, Tensor_i8) or isinstance(data, Tensor_i16) or isinstance(data, Tensor_i32) or isinstance(data, Tensor_i64)
+        ), f"Invalid data type provided: {type(data)}"
         self.__data: TensorType = data
         self.dtype = dtype
     @staticmethod
@@ -199,6 +204,10 @@ class tensor:
         return cls(data, dtype=dtype)
     def reprstr(self, spacing_size:int) -> str:
         return self.__data.reprstr(spacing_size)
+    def pow_scalar(self, value:float) -> "tensor":
+        return tensor(self.__data.pow_scalar(value), dtype=self.dtype)
+    def pow_scalar_(self, value:float):
+        self.__data.pow_scalar_(value)
     def __repr__(self) -> str: 
         """
         Return a string representation of the tensor.
@@ -268,7 +277,6 @@ class tensor:
             self.__data.set_by_slicing(core_index, flattened, shape)
         else:
             raise TypeError("Wrong Type is passed")
-        
     def __add__(self, other: "tensor")->"tensor": 
         """
         Element-wise addition of two tensors.
@@ -276,6 +284,8 @@ class tensor:
         :param other: Another tensor to add.
         :return: A new tensor instance resulting from the addition.
         """
+        if self is other: 
+            return self * tensor.full(shape=[1], fill_value=2, dtype=self.dtype)
         return tensor(self.__data.__add__(other.__data), dtype=self.dtype)
     def __iadd__(self, other: "tensor")->"tensor": 
         """
@@ -284,6 +294,9 @@ class tensor:
         :param other: Another tensor to add in place.
         :return: The current tensor instance after in-place addition.
         """
+        if self is other:
+            self *= tensor.full(shape=[1], fill_value=2, dtype=self.dtype)
+            return self
         self.__data.__iadd__(other.__data)
         return self
     def __sub__(self, other: "tensor")->"tensor": 
@@ -293,6 +306,8 @@ class tensor:
         :param other: Another tensor to subtract.
         :return: A new tensor instance resulting from the subtraction.
         """
+        if self is other: 
+            return self.zeros_like(self, dtype=self.dtype)
         return tensor(self.__data.__sub__(other.__data), dtype=self.dtype)
     def __isub__(self, other: "tensor")->"tensor": 
         """
@@ -301,6 +316,9 @@ class tensor:
         :param other: Another tensor to subtract in place.
         :return: The current tensor instance after in-place subtraction.
         """
+        if self is other: 
+            self *= tensor.zeros(shape=[1], dtype=self.dtype)
+            return self
         self.__data.__isub__(other.__data)
         return self
     def __mul__(self, other: "tensor")->"tensor": 
@@ -310,6 +328,9 @@ class tensor:
         :param other: Another tensor to multiply.
         :return: A new tensor instance resulting from the multiplication.
         """
+        # assert self is not other, "tensor must be different, provided same reference"
+        if self is other: 
+            return self.pow_scalar(2)
         return tensor(self.__data.__mul__(other.__data), dtype=self.dtype)
     def __imul__(self, other: "tensor")->"tensor": 
         """
@@ -318,6 +339,10 @@ class tensor:
         :param other: Another tensor to multiply in place.
         :return: The current tensor instance after in-place multiplication.
         """
+        # assert self is not other, "tensor must be different, provided same reference"
+        if self is other: 
+            self.pow_scalar_(2)
+            return self
         self.__data.__imul__(other.__data)
         return self
     def __div__(self, other: "tensor")->"tensor": 
@@ -327,6 +352,11 @@ class tensor:
         :param other: Another tensor to divide by.
         :return: A new tensor instance resulting from the division.
         """
+        # assert self is not other, "tensor must be different, provided same reference"
+        assert self.dtype == float32 or self.dtype == float64, "div not possible with other dtypes"
+        if self is other: 
+            return self*self.pow_scalar(-1.0) # to handle 0/0 case i.e., Nan values
+            # most probably one_like but may be inf and 
         return tensor(self.__data.__div__(other.__data), dtype=self.dtype)
     def __idiv__(self, other: "tensor")->"tensor": 
         """
@@ -335,6 +365,11 @@ class tensor:
         :param other: Another tensor to divide by in place.
         :return: The current tensor instance after in-place division.
         """
+        # assert self is not other, "tensor must be different, provided same reference"
+        assert self.dtype == float32 or self.dtype == float64, "div not possible with other dtypes"
+        if self is other: 
+            self*=self.pow_scalar(-1.0)
+            return self
         self.__data.__idiv__(other.__data)
         return self
     def __matmul__(self, other: "tensor")->"tensor": 
@@ -344,7 +379,16 @@ class tensor:
         :param other: Another tensor to multiply with.
         :return: A new tensor instance resulting from the matrix multiplication.
         """
+        assert self is not other, "tensor must be different, provided same reference"
         return tensor(self.__data.__matmul__(other.__data), dtype=self.dtype)
+    def __neg__(self)->"tensor":
+        return self * tensor.full(shape=[1], fill_value=-1, dtype=self.dtype)
+    def __ineg__(self)->"tensor":
+        self *= tensor.full(shape=[1], fill_value=-1, dtype=self.dtype)
+        return self
+    def copy(self)->"tensor":
+        return self.reshape(self.shape)
+    
     def matmul(self, other: "tensor")->"tensor": 
         """
         Matrix multiplication of two tensors (alternative method using @).
@@ -352,6 +396,7 @@ class tensor:
         :param other: Another tensor to multiply with.
         :return: A new tensor instance resulting from the matrix multiplication.
         """
+        assert self is not other, "tensor must be different, provided same reference"
         return tensor(self.__data.matmul(other.__data), dtype=self.dtype)
     def dot(self, other: "tensor")->"tensor": 
         """
@@ -360,6 +405,7 @@ class tensor:
         :param other: Another tensor to compute the dot product with.
         :return: A new tensor instance resulting from the dot product.
         """
+        assert self is not other, "tensor must be different, provided same reference"
         return tensor(self.__data.dot(other.__data), dtype=self.dtype)
     @property
     def shape(self)->List[int]: 
@@ -368,6 +414,7 @@ class tensor:
 
         :return: The shape of the tensor as a list of integers.
         """
+        # print(type(self.__data)) # TODO NotImplementedType
         return self.__data.shape
     @property
     def strides(self)->List[int]: 
@@ -587,3 +634,6 @@ class tensor:
     def min(self, dim:Optional[int]=None, keepdims:bool=False)->"tensor": return tensor(self.__data.min(dim, keepdims), dtype=self.dtype)
     def argmax(self, dim:Optional[int]=None, keepdims:bool=False)->"tensor": return tensor(self.__data.argmax(dim, keepdims), dtype=self.dtype)
     def argmin(self, dim:Optional[int]=None, keepdims:bool=False)->"tensor": return tensor(self.__data.argmin(dim, keepdims), dtype=self.dtype)
+    
+    
+typetensor = Type[tensor]

@@ -80,6 +80,7 @@ pub trait NumLike: Clone + Copy + Display + std::cmp::PartialOrd +
     fn safe_sub(&self, other: &Self) -> Self;
     fn safe_mul(&self, other: &Self) -> Self;
     fn safe_div(&self, other: &Self) -> Self;
+    fn safe_powf(&self, v: f32) -> Self;
 }
 
 impl NumLike for f32 {
@@ -101,6 +102,7 @@ impl NumLike for f32 {
     fn safe_sub(&self, other: &Self) -> Self{self.sub(other)}
     fn safe_mul(&self, other: &Self) -> Self{self.mul(other)}
     fn safe_div(&self, other: &Self) -> Self{self.div(other)}
+    fn safe_powf(&self, v: f32)->Self{self.powf(v)}
 }
 impl NumLike for f64 {
     fn zero() -> Self {0.0}
@@ -120,6 +122,7 @@ impl NumLike for f64 {
     fn safe_sub(&self, other: &Self) -> Self{self.sub(other)}
     fn safe_mul(&self, other: &Self) -> Self{self.mul(other)}
     fn safe_div(&self, other: &Self) -> Self{self.div(other)}
+    fn safe_powf(&self, v: f32)->Self{self.powf(v as f64)}
 }
 
 impl NumLike for i8 {
@@ -140,6 +143,7 @@ impl NumLike for i8 {
     fn safe_sub(&self, other: &Self) -> Self{self.wrapping_sub(*other)}
     fn safe_mul(&self, other: &Self) -> Self{self.wrapping_mul(*other)}
     fn safe_div(&self, other: &Self) -> Self{self.wrapping_div(*other)}
+    fn safe_powf(&self, v: f32)->Self{self.wrapping_pow(v as u32)}
 }
 impl NumLike for i16 {
     fn zero() -> Self {0}
@@ -159,6 +163,7 @@ impl NumLike for i16 {
     fn safe_sub(&self, other: &Self) -> Self{self.wrapping_sub(*other)}
     fn safe_mul(&self, other: &Self) -> Self{self.wrapping_mul(*other)}
     fn safe_div(&self, other: &Self) -> Self{self.wrapping_div(*other)}
+    fn safe_powf(&self, v: f32)->Self{self.wrapping_pow(v as u32)}
 }
 impl NumLike for i32 {
     fn zero() -> Self {0}
@@ -178,6 +183,7 @@ impl NumLike for i32 {
     fn safe_sub(&self, other: &Self) -> Self{self.wrapping_sub(*other)}
     fn safe_mul(&self, other: &Self) -> Self{self.wrapping_mul(*other)}
     fn safe_div(&self, other: &Self) -> Self{self.wrapping_div(*other)}
+    fn safe_powf(&self, v: f32)->Self{self.wrapping_pow(v as u32)}
 }
 impl NumLike for i64 {
     fn zero() -> Self {0}
@@ -197,6 +203,7 @@ impl NumLike for i64 {
     fn safe_sub(&self, other: &Self) -> Self{self.wrapping_sub(*other)}
     fn safe_mul(&self, other: &Self) -> Self{self.wrapping_mul(*other)}
     fn safe_div(&self, other: &Self) -> Self{self.wrapping_div(*other)}
+    fn safe_powf(&self, v: f32)->Self{self.wrapping_pow(v as u32)}
 }
 
 impl NumLike for u8 {
@@ -217,6 +224,7 @@ impl NumLike for u8 {
     fn safe_sub(&self, other: &Self) -> Self{self.wrapping_sub(*other)}
     fn safe_mul(&self, other: &Self) -> Self{self.wrapping_mul(*other)}
     fn safe_div(&self, other: &Self) -> Self{self.wrapping_div(*other)}
+    fn safe_powf(&self, v: f32)->Self{self.wrapping_pow(v as u32)}
 }
 impl NumLike for u16 {
     fn zero() -> Self {0}
@@ -236,6 +244,7 @@ impl NumLike for u16 {
     fn safe_sub(&self, other: &Self) -> Self{self.wrapping_sub(*other)}
     fn safe_mul(&self, other: &Self) -> Self{self.wrapping_mul(*other)}
     fn safe_div(&self, other: &Self) -> Self{self.wrapping_div(*other)}
+    fn safe_powf(&self, v: f32)->Self{self.wrapping_pow(v as u32)}
 }
 impl NumLike for u32 {
     fn zero() -> Self {0}
@@ -255,6 +264,7 @@ impl NumLike for u32 {
     fn safe_sub(&self, other: &Self) -> Self{self.wrapping_sub(*other)}
     fn safe_mul(&self, other: &Self) -> Self{self.wrapping_mul(*other)}
     fn safe_div(&self, other: &Self) -> Self{self.wrapping_div(*other)}
+    fn safe_powf(&self, v: f32)->Self{self.wrapping_pow(v as u32)}
 }
 impl NumLike for u64 {
     fn zero() -> Self {0}
@@ -274,4 +284,5 @@ impl NumLike for u64 {
     fn safe_sub(&self, other: &Self) -> Self{self.wrapping_sub(*other)}
     fn safe_mul(&self, other: &Self) -> Self{self.wrapping_mul(*other)}
     fn safe_div(&self, other: &Self) -> Self{self.wrapping_div(*other)}
+    fn safe_powf(&self, v: f32)->Self{self.wrapping_pow(v as u32)}
 }

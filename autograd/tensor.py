@@ -1,109 +1,108 @@
-from .basetensor import tensor as BaseTensor
+from .basetensor import  float32, float64, tensor as BaseTensor, typetensor as TypeBaseTensor
 from typing import List, NewType, Union, Any, Optional, Tuple, NamedTuple, Callable, Type
 
 class Dependency(NamedTuple):
     tensor: 'Tensor'
     grad_fn: Callable[['BaseTensor'], 'BaseTensor']
 
-Tensorable = Union[int, float, list, BaseTensor]
+baseTensorable = Union[int, float, list, TypeBaseTensor]
 
-def ensure_tensor(tensorable: Tensorable) -> BaseTensor:
+def ensure_basetensor(tensorable: baseTensorable, dtype) -> BaseTensor:
     if isinstance(tensorable, BaseTensor): return tensorable
     elif isinstance(tensorable, list):
-        return BaseTensor.from_list(tensorable)
+        return BaseTensor.from_list(tensorable, dtype)
     elif isinstance(tensorable, float):
-        return BaseTensor.full([1], tensorable)
+        return BaseTensor.full([1], tensorable, dtype)
     elif isinstance(tensorable, int):
-        return BaseTensor.full([1], tensorable)
+        return BaseTensor.full([1], tensorable, dtype)
 
+Tensorable = Union['Tensor', int, float, list, TypeBaseTensor]
+
+def ensure_tensor(tensorable: Tensorable, dtype) -> "Tensor":
+    if isinstance(tensorable, Tensor): 
+        return tensorable
+    return Tensor(
+        data= ensure_basetensor(tensorable, dtype),
+        required_grad=False
+    )
+    
 class Tensor:
     def __init__(self,
-                 data: Tensorable,
+                 data: baseTensorable,
                  required_grad: bool = False,
-                 depends_on: List[Dependency] = None)->None:
-        self.data: BaseTensor = ensure_tensor(data)
+                 depends_on: List[Dependency] = None,
+                 dtype=None)->None:
+        self.__data: BaseTensor = ensure_basetensor(data, dtype or float32)
         self.required_grad = required_grad
         self.depends_on = depends_on or []
         
-        self.shape = tuple(self.data.shape)
-        self.ndim = self.data.ndim
-        
+        self.shape = tuple(self.__data.shape)
+        self.ndim = self.__data.ndim
+        self.dtype = self.__data.dtype
         self.grad:Optional['Tensor'] = None
         if self.required_grad: 
             self.zero_grad()
     def zero_grad(self):
-        self.grad = Tensor(BaseTensor.zeros_like(self.data))
+        self.grad = Tensor(BaseTensor.zeros_like(self.__data))
         
     def __repr__(self) -> str:
-        return f"Tensor({self.data.reprstr(spacing_size=7)}, required_grad={self.required_grad})"
+        return f"Tensor({self.__data.reprstr(spacing_size=7)}, required_grad={self.required_grad})"
     
+    @property
+    def data(self)->BaseTensor:
+        return self.__data
+    @data.setter
+    def data(self, new_data:BaseTensor)->None:
+        self.__data = new_data
+        # Invalidate the gradients you can't use this grad anymore...
+        self.grad = None
+    def __matmul__(self, other)->"Tensor":
+        return _matmul(self, other)
+    def __add__(self, other:Tensorable)->"Tensor":
+        return _add(self, ensure_tensor(other, dtype=self.dtype))
+    def __radd__(self, other:Tensorable)->"Tensor":
+        return _add(ensure_tensor(other, dtype=self.dtype), self)
+    def __iadd__(self, other:Tensorable)->"Tensor":
+        self.__data += ensure_tensor(other, dtype=self.dtype).__data
+        # Invalidate the gradients you can't use this grad anymore...
+        self.grad = None
+        return self
+    def __sub__(self, other:Tensorable)->"Tensor":
+        return _sub(self, ensure_tensor(other, dtype=self.dtype))
+    def __rsub__(self, other:Tensorable)->"Tensor":
+        return _sub(ensure_tensor(other, dtype=self.dtype), self)
+    def __isub__(self, other:Tensorable)->"Tensor":
+        self.__data -= ensure_tensor(other, dtype=self.dtype).__data
+        # Invalidate the gradients you can't use this grad anymore...
+        self.grad = None
+        return self
+    def __mul__(self, other:Tensorable)->"Tensor":
+        return _mul(self, ensure_tensor(other, dtype=self.dtype))
+    def __rmul__(self, other:Tensorable)->"Tensor":
+        return _mul(ensure_tensor(other, dtype=self.dtype), self)
+    def __imul__(self, other:Tensorable)->"Tensor":
+        self.__data *= ensure_tensor(other, dtype=self.dtype).__data
+        # Invalidate the gradients you can't use this grad anymore...
+        self.grad = None
+        return self
+    def __neg__(self)->"Tensor":
+        return _neg(self)
     def backward(self, grad: Optional['Tensor'] = None)->None:
         assert self.required_grad, "called backward on non-required-grad tensor"
         if grad is None:
             if self.ndim == 1:
-                grad = Tensor(BaseTensor.ones([1], dtype=self.data.dtype))
+                grad = Tensor(BaseTensor.ones([1], dtype=self.__data.dtype))
             else: 
                 raise RuntimeError("grad must be specified for non-0-tensor")
                 
-        assert grad.data is not None, f"grad.data is none {self}"
-        self.grad.data += grad.data
+        assert grad.__data is not None, f"grad.data is none {self}"
+        self.grad.__data += grad.__data
         
         for dependency in self.depends_on:
-            backward_grad = dependency.grad_fn(grad.data)
+            backward_grad = dependency.grad_fn(grad.__data)
             dependency.tensor.backward(Tensor(backward_grad))
     
     def sum(self) -> 'Tensor':
         return tensor_sum(self)
     
-
-def tensor_sum(t: Tensor) -> Tensor:
-    """
-    takes a tensor and return 0-tensor sum
-    """
-    data = t.data.sum()
-    required_grad = t.required_grad
-    if required_grad:
-        def grad_fn(grad: BaseTensor)->BaseTensor:
-            """
-            grad is nessarily a 0-tensor, so each element contribute that much
-            """
-            return grad * BaseTensor.ones_like(t.data)
-        depends_on = [Dependency(t, grad_fn)]
-    else:
-        depends_on = []
-    return Tensor(data,
-                  required_grad,
-                  depends_on)
-
-def add(t1: Tensor, t2: Tensor) -> Tensor:
-    data = t1.data + t2.data
-    required_grad = t1.required_grad or t2.required_grad
-    depends_on: List[Dependency] = []
-    if t1.required_grad:
-        def grad_fn1(grad: BaseTensor)->BaseTensor:
-            # [1, 2, 3] + [4, 5, 6] => [5, 7, 9]
-            # Sum out added dims i.e (3) => (1, 3)
-            ndims_added = grad.ndim - t1.data.ndim
-            for _ in range(ndims_added):
-                grad = grad.sum(dim=0)
-            # Sum across broadcasted (but non added dims) i.e (1, 3) => (2, 3)
-            for i, (dim, dimg) in enumerate(zip(t1.shape, grad.shape)):
-                if dim == 1 and dimg != 1:
-                    grad = grad.sum(dim=i, keepdims=True)
-            return grad
-        depends_on.append(Dependency(t1, grad_fn1))
-    if t2.required_grad:
-        def grad_fn2(grad: BaseTensor)->BaseTensor:
-            # handle broadcasting properly
-            ndims_added = grad.ndim - t2.data.ndim
-            for _ in range(ndims_added):
-                grad = grad.sum(dim=0)
-            for i, (dim, dimg) in enumerate(zip(t2.shape, grad.shape)):
-                if dim == 1 and dimg != 1:
-                    grad = grad.sum(dim=i, keepdims=True)
-            return grad
-        depends_on.append(Dependency(t2, grad_fn2))
-        
-    return Tensor(data,
-                  required_grad,
-                  depends_on)
+from .tensor_ops import _add, _sub, _mul, _neg, tensor_sum, _matmul

@@ -60,6 +60,14 @@ macro_rules! create_interface {
             pub fn reprstr(&mut self, spacing_size:usize) -> String { 
                 self.inner.value.reprstr(spacing_size)
             }
+            pub fn pow_scalar(&mut self, value: f32) -> PyResult<Self>{
+                Ok(Self {
+                    inner: Tensor { value: self.inner.value.pow_scalar(value) },
+                })
+            }
+            pub fn pow_scalar_(&mut self, value: f32){
+                self.inner.value.pow_scalar_(value)
+            }
             pub fn __repr__(&mut self) -> String {
                 self.inner.value.repr()
             }

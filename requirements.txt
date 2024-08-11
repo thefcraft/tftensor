@@ -1,4 +1,4 @@
-tftensor_core
+tftensor_core # rust core module for tensor multiplication and etc.
 
 pytest
 mypy

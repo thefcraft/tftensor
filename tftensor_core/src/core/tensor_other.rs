@@ -19,6 +19,7 @@ where
     axis_order: Vec<usize>, 
     __nochange: bool,
 }
+// TODO check __nochange in case of traspose as it have bugs
 impl<'a, T, U> TransposeTensor<'a, T, U> 
 where 
     T: NumLike,
@@ -49,6 +50,8 @@ where
         }
         let __nochange = *tensor.get_strides() == new_strides;
         let new_size = *tensor.get_size();
+        // println!("{:?}", new_shape);
+        // println!("{:?}", new_strides);
         Self { 
             tensor, 
             new_strides, 
@@ -92,7 +95,7 @@ where
 {
     fn is_mutable(&self) -> bool{self.tensor.is_mutable()}
     fn get_mut_by_indices(&mut self, indices:&Vec<usize>)->&mut T{
-        if self.__nochange {return self.tensor.get_mut_by_indices(&indices);}
+        // if self.__nochange {return self.tensor.get_mut_by_indices(&indices);}
         debug_assert!(indices.len() == self.new_ndim, "Provided full indices");
         debug_assert!(indices.iter().zip(self.new_shape.iter()).all(|(&index, &dim)| index < dim), "Check indices");
         // Reorder shape and strides according to axis_order
@@ -102,7 +105,7 @@ where
         return self.tensor.get_mut_by_indices(&self.__temp_indices);
     }
     fn get_by_indices(&mut self, indices:&Vec<usize>)-> &T{
-        if self.__nochange {return self.tensor.get_by_indices(&indices);}
+        // if self.__nochange {return self.tensor.get_by_indices(&indices);}
         debug_assert!(indices.len() == self.new_ndim, "Provided full indices");
         debug_assert!(indices.iter().zip(self.new_shape.iter()).all(|(&index, &dim)| index < dim), "Check indices");
         // Reorder shape and strides according to axis_order

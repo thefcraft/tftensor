@@ -19,6 +19,7 @@ pub trait TensorLike<T: NumLike>{
         let ndim = *self.get_ndim();
         let shape = self.get_shape().clone();
         loop {
+            // println!("{:?}", indices);
             result_flatten.push(
                 *self.get_by_indices(&indices)
             );
@@ -778,6 +779,12 @@ pub trait TensorLike<T: NumLike>{
         let mut ptr = self.get_mut_by_indices(indices);
         *ptr = ptr.safe_div(&value);
     }
+    fn pow_by_indices(&mut self, indices:&Vec<usize>, value: f32){
+        debug_assert!(self.is_mutable(), "cannot update the values of broadcasted tensors as they have not one one mapping");
+        
+        let mut ptr = self.get_mut_by_indices(indices);
+        *ptr = ptr.safe_powf(value);
+    }
     fn add_<U: TensorLike<T>>(&mut self, other: &mut U)
         where Self:Sized 
     {
@@ -893,6 +900,35 @@ pub trait TensorLike<T: NumLike>{
             }
         }
     }
+    fn pow_scalar(&mut self, value: f32) -> Tensor<T>
+        where Self:Sized 
+    {
+        let mut result = self.to_tensor();
+        result.pow_scalar_(value);
+        result
+    }
 
+    fn pow_scalar_(&mut self, value: f32){
+        let new_shape = self.get_shape().clone();
+        let new_ndim = new_shape.len();
+        let mut indices: Vec<usize> = vec![0; new_ndim];
+        
+        loop {
+            self.pow_by_indices(&indices, value);
+            // Increment indices
+            let mut i = new_ndim - 1;
+            loop {
+                indices[i] += 1;
+                if indices[i] < new_shape[i] {
+                    break;
+                }
+                indices[i] = 0;
+                if i == 0 {
+                    return;
+                }
+                i -= 1;
+            }
+        }
+    }
 
 }

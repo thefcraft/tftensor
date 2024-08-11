@@ -154,6 +154,7 @@ impl<T: NumLike> TensorLike<T> for Tensor<T> {
     }
     fn get_by_indices(&mut self, indices:&Vec<usize>)-> &T{
         debug_assert!(indices.len() == self.ndim, "Provided full indices");
+        // println!("{:?} {:?}", self.shape, indices);
         debug_assert!(indices.iter().zip(self.shape.iter()).all(|(&index, &dim)| index < dim), "Check indices");
 
         let index:usize = indices.iter()
