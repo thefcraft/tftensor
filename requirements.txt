@@ -1,0 +1,4 @@
+tftensor_core
+
+pytest
+mypy
