@@ -25,7 +25,7 @@ class Tensor:
         self.required_grad = required_grad
         self.depends_on = depends_on or []
         
-        self.shape = self.data.shape
+        self.shape = tuple(self.data.shape)
         self.ndim = self.data.ndim
         
         self.grad:Optional['Tensor'] = None
@@ -41,11 +41,11 @@ class Tensor:
         assert self.required_grad, "called backward on non-required-grad tensor"
         if grad is None:
             if self.ndim == 1:
-                grad = Tensor(1)
+                grad = Tensor(BaseTensor.ones([1], dtype=self.data.dtype))
             else: 
                 raise RuntimeError("grad must be specified for non-0-tensor")
                 
-            
+        assert grad.data is not None, f"grad.data is none {self}"
         self.grad.data += grad.data
         
         for dependency in self.depends_on:
@@ -71,6 +71,39 @@ def tensor_sum(t: Tensor) -> Tensor:
         depends_on = [Dependency(t, grad_fn)]
     else:
         depends_on = []
+    return Tensor(data,
+                  required_grad,
+                  depends_on)
+
+def add(t1: Tensor, t2: Tensor) -> Tensor:
+    data = t1.data + t2.data
+    required_grad = t1.required_grad or t2.required_grad
+    depends_on: List[Dependency] = []
+    if t1.required_grad:
+        def grad_fn1(grad: BaseTensor)->BaseTensor:
+            # [1, 2, 3] + [4, 5, 6] => [5, 7, 9]
+            # Sum out added dims i.e (3) => (1, 3)
+            ndims_added = grad.ndim - t1.data.ndim
+            for _ in range(ndims_added):
+                grad = grad.sum(dim=0)
+            # Sum across broadcasted (but non added dims) i.e (1, 3) => (2, 3)
+            for i, (dim, dimg) in enumerate(zip(t1.shape, grad.shape)):
+                if dim == 1 and dimg != 1:
+                    grad = grad.sum(dim=i, keepdims=True)
+            return grad
+        depends_on.append(Dependency(t1, grad_fn1))
+    if t2.required_grad:
+        def grad_fn2(grad: BaseTensor)->BaseTensor:
+            # handle broadcasting properly
+            ndims_added = grad.ndim - t2.data.ndim
+            for _ in range(ndims_added):
+                grad = grad.sum(dim=0)
+            for i, (dim, dimg) in enumerate(zip(t2.shape, grad.shape)):
+                if dim == 1 and dimg != 1:
+                    grad = grad.sum(dim=i, keepdims=True)
+            return grad
+        depends_on.append(Dependency(t2, grad_fn2))
+        
     return Tensor(data,
                   required_grad,
                   depends_on)

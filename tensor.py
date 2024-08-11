@@ -1,7 +1,7 @@
 from tftensor_core import Tensor_f32, Tensor_f64, Tensor_u8, Tensor_u16, Tensor_u32, Tensor_u64, Tensor_i8, Tensor_i16, Tensor_i32, Tensor_i64
 from tftensor_core import TensorType
 
-from typing import List, NewType, Union, Any, Optional, Tuple
+from typing import List, NewType, Union, Any, Optional, TypeVar, Type
 import struct
 
 try: import numpy # required to convert tfTensor to and from numpy
@@ -18,7 +18,7 @@ uint16 = NewType('uint16', int)
 uint32 = NewType('uint32', int)
 uint64 = NewType('uint64', int)
 
-def base_class(dtype)->TensorType:
+def base_class(dtype)->Type[TensorType]:
     """
     Returns the corresponding TensorType class based on the dtype provided.
 
@@ -38,20 +38,21 @@ def base_class(dtype)->TensorType:
     elif dtype == uint64: return Tensor_u64
     else:
         raise TypeError(f"Unsupported dtype: {dtype}")
-class Tensor:
-    """
-    A Tensor class that wraps a TensorType instance and provides additional tensor operations.
 
-    :param data: An instance of TensorType that holds the tensor data.
+class tensor:
     """
-    def __init__(self, data)->"Tensor":
+    A tensor class that wraps a tensorType instance and provides additional tensor operations.
+
+    :param data: An instance of tensorType that holds the tensor data.
+    """
+    def __init__(self, data, dtype)->None:
         """
-        Initialize the Tensor with a TensorType instance.
+        Initialize the tensor with a tensorType instance.
 
-        :param data: TensorType instance to initialize the Tensor.
+        :param data: tensorType instance to initialize the tensor.
         """
         self.__data: TensorType = data
-        
+        self.dtype = dtype
     @staticmethod
     def flatten_and_get_shape(nested_list):
         """
@@ -120,71 +121,89 @@ class Tensor:
 
         return nest(flattened_list, shape)     
     @classmethod
-    def randn(cls, shape: List[int], seed: Optional[int] = None, dtype=float32)->"Tensor": 
+    def randn(cls, shape: List[int], seed: Optional[int] = None, dtype=float32)->"tensor": 
         """
-        Create a Tensor with random values drawn from simple linear congruential generator (LCG).
+        Create a tensor with random values drawn from simple linear congruential generator (LCG).
 
         :param shape: Shape of the tensor.
         :param seed: Seed for random number generation.
         :param dtype: Data type of the tensor.
-        :return: A Tensor instance with random values.
+        :return: A tensor instance with random values.
         """
         data = base_class(dtype).randn(shape, seed)
-        return cls(data)
+        return cls(data, dtype=dtype)
     @classmethod
-    def zeros(cls, shape: List[int], dtype=float32)->"Tensor": 
+    def zeros(cls, shape: List[int], dtype=float32)->"tensor": 
         """
-        Create a Tensor filled with zeros.
+        Create a tensor filled with zeros.
 
         :param shape: Shape of the tensor.
         :param dtype: Data type of the tensor.
-        :return: A Tensor instance filled with zeros.
+        :return: A tensor instance filled with zeros.
         """
         data = base_class(dtype).zeros(shape)
-        return cls(data)
+        return cls(data, dtype=dtype)
     @classmethod
-    def ones(cls, shape: List[int], dtype=float32)->"Tensor":
+    def zeros_like(cls, other:"tensor", dtype=None)->"tensor":
+        shape = other.shape
+        dtype = dtype or other.dtype
+        data = base_class(dtype).zeros(shape)
+        return cls(data, dtype=dtype)
+    @classmethod
+    def ones(cls, shape: List[int], dtype=float32)->"tensor":
         """
-        Create a Tensor filled with ones.
+        Create a tensor filled with ones.
 
         :param shape: Shape of the tensor.
         :param dtype: Data type of the tensor.
-        :return: A Tensor instance filled with ones.
+        :return: A tensor instance filled with ones.
         """
         data = base_class(dtype).ones(shape)
-        return cls(data)
+        return cls(data, dtype=dtype)
     @classmethod
-    def full(cls, shape: List[int], fill_value, dtype=float32)->"Tensor": 
+    def ones_like(cls, other:"tensor", dtype=None)->"tensor":
+        shape = other.shape
+        dtype = dtype or other.dtype
+        data = base_class(dtype).ones(shape)
+        return cls(data, dtype=dtype)
+    @classmethod
+    def full(cls, shape: List[int], fill_value, dtype=float32)->"tensor": 
         """
-        Create a Tensor filled with a specified value.
+        Create a tensor filled with a specified value.
 
         :param shape: Shape of the tensor.
         :param fill_value: Value to fill the tensor with.
         :param dtype: Data type of the tensor.
-        :return: A Tensor instance filled with the specified value.
+        :return: A tensor instance filled with the specified value.
         """
         data = base_class(dtype).full(shape, fill_value)
-        return cls(data)
+        return cls(data, dtype=dtype)
     @classmethod
-    def arange(cls, start, stop, step = None, dtype=float32)->"Tensor":
+    def full_like(cls, other:"tensor", fill_value, dtype=None)->"tensor":
+        shape = other.shape
+        dtype = dtype or other.dtype
+        data = base_class(dtype).full(shape, fill_value)
+        return cls(data, dtype=dtype)
+    @classmethod
+    def arange(cls, start, stop, step = None, dtype=float32)->"tensor":
         """
-        Create a Tensor with values in a specified range.
+        Create a tensor with values in a specified range.
 
         :param start: Starting value of the range.
         :param stop: End value of the range (exclusive).
         :param step: Step size between values.
         :param dtype: Data type of the tensor.
-        :return: A Tensor instance with values in the specified range.
+        :return: A tensor instance with values in the specified range.
         """
         data = base_class(dtype).arange(start, stop, step)
-        return cls(data)
-    def str(self, spacing_size:int) -> str:
-        return self.__data.str(spacing_size)
+        return cls(data, dtype=dtype)
+    def reprstr(self, spacing_size:int) -> str:
+        return self.__data.reprstr(spacing_size)
     def __repr__(self) -> str: 
         """
-        Return a string representation of the Tensor.
+        Return a string representation of the tensor.
 
-        :return: String representation of the Tensor.
+        :return: String representation of the tensor.
         """
         return self.__data.__repr__()
     def __len__(self): return self.size
@@ -213,7 +232,7 @@ class Tensor:
         if single_value:
             core_index[-1][1] = core_index[-1][0] + 1
             return self.__data.get_by_slicing(core_index).item()
-        return Tensor(self.__data.get_by_slicing(core_index))
+        return tensor(self.__data.get_by_slicing(core_index))
     def __setitem__(self, index, value):
         core_index = []
         if isinstance(index, tuple):
@@ -244,181 +263,181 @@ class Tensor:
         if isinstance(value, list):
             flattened, shape = self.flatten_and_get_shape(value)
             self.__data.set_by_slicing(core_index, flattened, shape)
-        elif isinstance(value, Tensor):
+        elif isinstance(value, tensor):
             flattened, shape = value.flatten().to_list(), value.shape
             self.__data.set_by_slicing(core_index, flattened, shape)
         else:
             raise TypeError("Wrong Type is passed")
         
-    def __add__(self, other: "Tensor")->"Tensor": 
+    def __add__(self, other: "tensor")->"tensor": 
         """
-        Element-wise addition of two Tensors.
+        Element-wise addition of two tensors.
 
-        :param other: Another Tensor to add.
-        :return: A new Tensor instance resulting from the addition.
+        :param other: Another tensor to add.
+        :return: A new tensor instance resulting from the addition.
         """
-        return Tensor(self.__data.__add__(other.__data))
-    def __iadd__(self, other: "Tensor")->"Tensor": 
+        return tensor(self.__data.__add__(other.__data), dtype=self.dtype)
+    def __iadd__(self, other: "tensor")->"tensor": 
         """
-        Element-wise in-place addition of another Tensor.
+        Element-wise in-place addition of another tensor.
 
-        :param other: Another Tensor to add in place.
-        :return: The current Tensor instance after in-place addition.
+        :param other: Another tensor to add in place.
+        :return: The current tensor instance after in-place addition.
         """
         self.__data.__iadd__(other.__data)
         return self
-    def __sub__(self, other: "Tensor")->"Tensor": 
+    def __sub__(self, other: "tensor")->"tensor": 
         """
-        Element-wise subtraction of two Tensors.
+        Element-wise subtraction of two tensors.
 
-        :param other: Another Tensor to subtract.
-        :return: A new Tensor instance resulting from the subtraction.
+        :param other: Another tensor to subtract.
+        :return: A new tensor instance resulting from the subtraction.
         """
-        return Tensor(self.__data.__sub__(other.__data))
-    def __isub__(self, other: "Tensor")->"Tensor": 
+        return tensor(self.__data.__sub__(other.__data), dtype=self.dtype)
+    def __isub__(self, other: "tensor")->"tensor": 
         """
-        Element-wise in-place subtraction of another Tensor.
+        Element-wise in-place subtraction of another tensor.
 
-        :param other: Another Tensor to subtract in place.
-        :return: The current Tensor instance after in-place subtraction.
+        :param other: Another tensor to subtract in place.
+        :return: The current tensor instance after in-place subtraction.
         """
         self.__data.__isub__(other.__data)
         return self
-    def __mul__(self, other: "Tensor")->"Tensor": 
+    def __mul__(self, other: "tensor")->"tensor": 
         """
-        Element-wise multiplication of two Tensors.
+        Element-wise multiplication of two tensors.
 
-        :param other: Another Tensor to multiply.
-        :return: A new Tensor instance resulting from the multiplication.
+        :param other: Another tensor to multiply.
+        :return: A new tensor instance resulting from the multiplication.
         """
-        return Tensor(self.__data.__mul__(other.__data))
-    def __imul__(self, other: "Tensor")->"Tensor": 
+        return tensor(self.__data.__mul__(other.__data), dtype=self.dtype)
+    def __imul__(self, other: "tensor")->"tensor": 
         """
-        Element-wise in-place multiplication of another Tensor.
+        Element-wise in-place multiplication of another tensor.
 
-        :param other: Another Tensor to multiply in place.
-        :return: The current Tensor instance after in-place multiplication.
+        :param other: Another tensor to multiply in place.
+        :return: The current tensor instance after in-place multiplication.
         """
         self.__data.__imul__(other.__data)
         return self
-    def __div__(self, other: "Tensor")->"Tensor": 
+    def __div__(self, other: "tensor")->"tensor": 
         """
-        Element-wise division of two Tensors.
+        Element-wise division of two tensors.
 
-        :param other: Another Tensor to divide by.
-        :return: A new Tensor instance resulting from the division.
+        :param other: Another tensor to divide by.
+        :return: A new tensor instance resulting from the division.
         """
-        return Tensor(self.__data.__div__(other.__data))
-    def __idiv__(self, other: "Tensor")->"Tensor": 
+        return tensor(self.__data.__div__(other.__data), dtype=self.dtype)
+    def __idiv__(self, other: "tensor")->"tensor": 
         """
-        Element-wise in-place division of another Tensor.
+        Element-wise in-place division of another tensor.
 
-        :param other: Another Tensor to divide by in place.
-        :return: The current Tensor instance after in-place division.
+        :param other: Another tensor to divide by in place.
+        :return: The current tensor instance after in-place division.
         """
         self.__data.__idiv__(other.__data)
         return self
-    def __matmul__(self, other: "Tensor")->"Tensor": 
+    def __matmul__(self, other: "tensor")->"tensor": 
         """
-        Matrix multiplication of two Tensors.
+        Matrix multiplication of two tensors.
 
-        :param other: Another Tensor to multiply with.
-        :return: A new Tensor instance resulting from the matrix multiplication.
+        :param other: Another tensor to multiply with.
+        :return: A new tensor instance resulting from the matrix multiplication.
         """
-        return Tensor(self.__data.__matmul__(other.__data))
-    def matmul(self, other: "Tensor")->"Tensor": 
+        return tensor(self.__data.__matmul__(other.__data), dtype=self.dtype)
+    def matmul(self, other: "tensor")->"tensor": 
         """
-        Matrix multiplication of two Tensors (alternative method using @).
+        Matrix multiplication of two tensors (alternative method using @).
 
-        :param other: Another Tensor to multiply with.
-        :return: A new Tensor instance resulting from the matrix multiplication.
+        :param other: Another tensor to multiply with.
+        :return: A new tensor instance resulting from the matrix multiplication.
         """
-        return Tensor(self.__data.matmul(other.__data))
-    def dot(self, other: "Tensor")->"Tensor": 
+        return tensor(self.__data.matmul(other.__data), dtype=self.dtype)
+    def dot(self, other: "tensor")->"tensor": 
         """
-        Dot product of two Tensors.
+        Dot product of two tensors.
 
-        :param other: Another Tensor to compute the dot product with.
-        :return: A new Tensor instance resulting from the dot product.
+        :param other: Another tensor to compute the dot product with.
+        :return: A new tensor instance resulting from the dot product.
         """
-        return Tensor(self.__data.dot(other.__data))
+        return tensor(self.__data.dot(other.__data), dtype=self.dtype)
     @property
     def shape(self)->List[int]: 
         """
-        Get the shape of the Tensor.
+        Get the shape of the tensor.
 
-        :return: The shape of the Tensor as a list of integers.
+        :return: The shape of the tensor as a list of integers.
         """
         return self.__data.shape
     @property
     def strides(self)->List[int]: 
         """
-        Get the strides of the Tensor.
+        Get the strides of the tensor.
 
-        :return: The strides of the Tensor as a list of integers.
+        :return: The strides of the tensor as a list of integers.
         """
         return self.__data.strides
     @property
     def ndim(self)->int: 
         """
-        Get the number of dimensions of the Tensor.
+        Get the number of dimensions of the tensor.
 
-        :return: The number of dimensions of the Tensor.
+        :return: The number of dimensions of the tensor.
         """
         return self.__data.ndim
     @property
     def size(self)->int:
         """
-        Get the total size of the Tensor.
+        Get the total size of the tensor.
 
-        :return: The total number of elements in the Tensor.
+        :return: The total number of elements in the tensor.
         """
         return self.__data.size
     def reshape_(self, shape: List[int]): 
         """
-        Reshape the Tensor in-place.
+        Reshape the tensor in-place.
 
-        :param shape: New shape for the Tensor.
+        :param shape: New shape for the tensor.
         """
         self.__data.reshape_(shape)
-    def reshape(self, shape: List[int])->"Tensor": 
+    def reshape(self, shape: List[int])->"tensor": 
         """
-        Return a new Tensor with the specified shape.
+        Return a new tensor with the specified shape.
 
-        :param shape: New shape for the Tensor.
-        :return: A new Tensor instance with the specified shape.
+        :param shape: New shape for the tensor.
+        :return: A new tensor instance with the specified shape.
         """
-        return Tensor(self.__data.reshape(shape))
+        return tensor(self.__data.reshape(shape), dtype=self.dtype)
     @property
-    def T(self)->"Tensor": 
+    def T(self)->"tensor": 
         """
-        Transpose the Tensor.
+        Transpose the tensor.
 
-        :return: A new Tensor instance that is the transpose of the current Tensor.
+        :return: A new tensor instance that is the transpose of the current tensor.
         """
-        return Tensor(self.__data.T)
-    def transpose(self, axis_order: List[int])->"Tensor": 
+        return tensor(self.__data.T, dtype=self.dtype)
+    def transpose(self, axis_order: List[int])->"tensor": 
         """
-        Transpose the Tensor according to the specified axis order.
+        Transpose the tensor according to the specified axis order.
 
         :param axis_order: List of integers specifying the new axis order.
-        :return: A new Tensor instance with the specified axis order.
+        :return: A new tensor instance with the specified axis order.
         """
-        return Tensor(self.__data.transpose(axis_order))
+        return tensor(self.__data.transpose(axis_order), dtype=self.dtype)
     
     @classmethod
-    def from_list(cls, value: List[Union[List, int]], dtype=float32)->"Tensor":
+    def from_list(cls, value: List[Union[List, int]], dtype=float32)->"tensor":
         """
-        Create a Tensor from a flattened list of data, a shape, and a dtype.
+        Create a tensor from a flattened list of data, a shape, and a dtype.
 
         :param data_flatten: Flattened list of data values.
         :param shape: Shape of the tensor.
         :param dtype: Data type of the tensor.
-        :return: A Tensor instance with the specified data, shape, and dtype.
+        :return: A tensor instance with the specified data, shape, and dtype.
         """
         flattened, shape = cls.flatten_and_get_shape(value)
         data = base_class(dtype)(flattened, shape)
-        return cls(data)
+        return cls(data, dtype=dtype)
     
     def to_list(self)->List[Union[List, int]]:
         buffer = self.to_bytes()
@@ -459,16 +478,16 @@ class Tensor:
         else:
             return self.unflatten_list(data, shape)
         
-    def flatten(self)->"Tensor":
+    def flatten(self)->"tensor":
         return self.reshape(shape=[self.size])
     
     @classmethod
-    def from_bytes(cls, buffer: bytearray)->"Tensor":
+    def from_bytes(cls, buffer: bytearray)->"tensor":
         """
-        The function `frombytes` takes a bytearray buffer as input and returns a Tensor object.
+        The function `frombytes` takes a bytearray buffer as input and returns a tensor object.
         
         :param buffer: The `buffer` parameter in the `frombytes` method is expected to be a `bytearray`
-        object containing the data that needs to be converted into a `Tensor` object
+        object containing the data that needs to be converted into a `tensor` object
         :type buffer: bytearray
         """
         def get_dtype(buffer):
@@ -484,8 +503,8 @@ class Tensor:
             elif buffer == 10: return int64
             else: raise ValueError("Unsupported buffer type")
         dtype = get_dtype(struct.unpack('<Q', buffer[8:16])[0])
-        data = base_class(dtype).frombytes(buffer)
-        return cls(data)
+        data = base_class(dtype).frombytes(List(buffer))
+        return cls(data, dtype=dtype)
     def to_bytes(self)->bytearray:
         """
         The function `tobytes` returns a `bytearray` object.
@@ -493,7 +512,7 @@ class Tensor:
         return bytearray(self.__data.tobytes())
     
     @classmethod
-    def from_numpy(cls, ndarray: "numpy.ndarray")->"Tensor":
+    def from_numpy(cls, ndarray: "numpy.ndarray")->"tensor":
         shape = ndarray.shape
         strides = [1]*len(shape)
         for i in reversed(range(0,len(shape)-1)):
@@ -561,5 +580,10 @@ class Tensor:
             return arr.T
         else:
             return arr
-        
-        
+
+    def mean(self, dim:Optional[int]=None, keepdims:bool=False)->"tensor": return tensor(self.__data.mean(dim, keepdims), dtype=self.dtype)
+    def sum(self, dim:Optional[int]=None, keepdims:bool=False)->"tensor": return tensor(self.__data.sum(dim, keepdims), dtype=self.dtype)
+    def max(self, dim:Optional[int]=None, keepdims:bool=False)->"tensor": return tensor(self.__data.max(dim, keepdims), dtype=self.dtype)
+    def min(self, dim:Optional[int]=None, keepdims:bool=False)->"tensor": return tensor(self.__data.min(dim, keepdims), dtype=self.dtype)
+    def argmax(self, dim:Optional[int]=None, keepdims:bool=False)->"tensor": return tensor(self.__data.argmax(dim, keepdims), dtype=self.dtype)
+    def argmin(self, dim:Optional[int]=None, keepdims:bool=False)->"tensor": return tensor(self.__data.argmin(dim, keepdims), dtype=self.dtype)
