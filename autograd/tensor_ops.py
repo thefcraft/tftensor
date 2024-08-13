@@ -187,3 +187,20 @@ def _matmul(t1: Tensor, t2: Tensor) -> Tensor:
     return Tensor(data,
                   required_grad,
                   depends_on)
+    
+
+def _slice(t: Tensor, idxs)->Tensor:
+    data = t.data.__getitem__(idxs)
+    required_grad = t.required_grad
+    if required_grad:
+        def grad_fn(grad: BaseTensor)->BaseTensor:
+            bigger_grad = BaseTensor.zeros_like(data)
+            bigger_grad.__setitem__(idxs, grad)
+            return bigger_grad
+        depends_on = [Dependency(t, grad_fn)]
+    else:
+        depends_on = []
+    
+    return Tensor(data, required_grad, depends_on)
+        
+        

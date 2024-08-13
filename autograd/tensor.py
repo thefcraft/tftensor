@@ -87,6 +87,8 @@ class Tensor:
         return self
     def __neg__(self)->"Tensor":
         return _neg(self)
+    def __getitem__(self, index): 
+        return _slice(self, index)
     def backward(self, grad: Optional['Tensor'] = None)->None:
         assert self.required_grad, "called backward on non-required-grad tensor"
         if grad is None:
@@ -105,4 +107,4 @@ class Tensor:
     def sum(self) -> 'Tensor':
         return tensor_sum(self)
     
-from .tensor_ops import _add, _sub, _mul, _neg, tensor_sum, _matmul
+from .tensor_ops import _add, _sub, _mul, _neg, tensor_sum, _matmul, _slice

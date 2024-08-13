@@ -241,7 +241,7 @@ class tensor:
         if single_value:
             core_index[-1][1] = core_index[-1][0] + 1
             return self.__data.get_by_slicing(core_index).item()
-        return tensor(self.__data.get_by_slicing(core_index))
+        return tensor(self.__data.get_by_slicing(core_index), dtype=self.dtype)
     def __setitem__(self, index, value):
         core_index = []
         if isinstance(index, tuple):
@@ -635,5 +635,39 @@ class tensor:
     def argmax(self, dim:Optional[int]=None, keepdims:bool=False)->"tensor": return tensor(self.__data.argmax(dim, keepdims), dtype=self.dtype)
     def argmin(self, dim:Optional[int]=None, keepdims:bool=False)->"tensor": return tensor(self.__data.argmin(dim, keepdims), dtype=self.dtype)
     
+    # Define the __lt__ method for <
+    def __lt__(self, other): ...
+    # Define the __le__ method for <=
+    def __le__(self, other): ...
+    # Define the __gt__ method for >
+    def __gt__(self, other): 
+        # TODO very bad implementation but this is for testing
+        if isinstance(other, int) or isinstance(other, float):
+            data = self.reshape([self.size]).to_list()
+            data = [1 if i>other else 0 for i in data]
+            new = tensor.from_list(data, self.dtype)
+            new.reshape_(self.shape)
+            return new
+        else: raise NotImplementedError("__gt__ is not implemented")
+    # Define the __ge__ method for >=
+    def __ge__(self, other): ...
+    # Define the __eq__ method for ==
+    def __eq__(self, other): ...
+    # Define the __ne__ method for !=
+    def __ne__(self, other): ...
+
+
     
 typetensor = Type[tensor]
+
+
+def maximum(value, data: tensor)->tensor:
+    # TODO very bad implementation but this is for testing
+    if isinstance(value, int) or isinstance(value, float):
+            data_ = data.reshape([data.size]).to_list()
+            data_ = [i if i>value else value for i in data_]
+            new = tensor.from_list(data_, data.dtype)
+            new.reshape_(data.shape)
+            return new
+    else: 
+        raise NotImplementedError("maximum is not implemented")
