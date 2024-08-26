@@ -1,6 +1,6 @@
-# `tftensor-core`: A Rust-based Tensor Library with Automatic Differentiation
+# `tftensor`: A Rust-based Tensor Library with Automatic Differentiation
 
-`tftensor-core` is a tensor library implemented in Rust, designed to be a lightweight and <s>efficient</s> alternative to libraries like NumPy and PyTorch. It offers tensor operations, automatic differentiation, and supports basic neural network training functionalities.
+`tftensor` is a tensor library implemented in Rust, designed to be a lightweight and <s>efficient</s> alternative to libraries like NumPy and PyTorch. It offers tensor operations, automatic differentiation, and supports basic neural network training functionalities.
 
 ## Features
 
